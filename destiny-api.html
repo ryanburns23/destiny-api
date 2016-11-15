@@ -43,7 +43,6 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
         characters: {
           type: Array,
           reflectToAttribute: true,
-          value: [],
         },
         loadingCharacters: {
           type: Boolean,
@@ -119,7 +118,7 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
            if(response.ErrorStatus == "Success"){
              for (var i = 0; i < response.Response.data.characters.length; i++) {
                var char = response.Response.data.characters[i];
-              _this.push('characters', {
+              _this.set('characters', {
                 characterType: _this._characterName(char.characterBase.classType),
                 characterLevel: char.characterLevel,
                 minutesPlayedTotal: char.characterBase.minutesPlayedTotal,
