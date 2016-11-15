@@ -1,0 +1,185 @@
+<link rel="import" href="../polymer/polymer.html">
+<!--
+`<destiny-api>`
+Polymer element to access destiny API [endpoints](http://destinydevs.github.io/BungieNetPlatform/docs/Endpoints).
+
+
+
+@demo demo/index.html
+-->
+
+<dom-module id="destiny-api">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+
+  </template>
+
+  <script>
+    Polymer({
+
+      is: 'destiny-api',
+      properties: {
+        apiKey: {
+          type: String,
+        },
+        userName: {
+          type: String,
+        },
+        console: {
+          type: Number,
+          value: 2,
+        },
+        stats: {
+          type: Object,
+          value: {},
+        },
+        membershipId: {
+          type: String,
+        },
+        characters: {
+          type: Array,
+          value: [],
+        },
+        loadingCharacters: {
+          type: Boolean,
+          value: true,
+        },
+        loadingStats: {
+          type: Boolean,
+          value: true,
+        },
+      },
+
+      ready: function() {
+        this._getMembershipIdByDisplayName(this.apiKey);
+      },
+
+      _getMembershipIdByDisplayName: function() {
+        var url = "https://www.bungie.net/platform/Destiny" + "/" + this.console +"/Stats/GetMembershipIdByDisplayName/"+ this.userName +"/";
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url , true);
+        xhr.setRequestHeader("X-API-Key", this.apiKey);
+
+        var _this = this;
+        xhr.onreadystatechange = function(){
+         if(this.readyState === 4 && this.status === 200){
+           var response = JSON.parse(this.responseText);
+           if(response.ErrorStatus == "Success"){
+             _this.membershipId = response.Response;
+             _this._getStats();
+             _this._getCharacters();
+           }else {
+             console.log("ERROR GETTING ID", response);
+           }
+         }
+        }
+
+        xhr.send();
+      },
+
+      _getStats: function() {
+        var url = "https://www.bungie.net/platform/Destiny/Stats/Account/"+ this.console + "/" + this.membershipId +"/";
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url , true);
+        xhr.setRequestHeader("X-API-Key", this.apiKey);
+
+        var _this = this;
+        xhr.onreadystatechange = function(){
+         if(this.readyState === 4 && this.status === 200){
+           var response = JSON.parse(this.responseText);
+           if(response.ErrorStatus == "Success"){
+             _this.set('stats', { mergedCharacters: {} } );
+             _this.set('stats.mergedCharacters.pvp', response.Response.mergedAllCharacters.results.allPvP.allTime);
+             _this.set('stats.mergedCharacters.pve', response.Response.mergedAllCharacters.results.allPvE.allTime);
+             console.log("STATS", _this.stats);
+           }else {
+             console.log("ERROR GETTING STATS", response);
+           }
+         }
+        }
+
+        xhr.send();
+      },
+
+      _getCharacters: function() {
+        var url = "https://www.bungie.net/platform/Destiny/" + this.console + "/Account/" + this.membershipId +"/";
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url , true);
+        xhr.setRequestHeader("X-API-Key", this.apiKey);
+
+        var _this = this;
+        xhr.onreadystatechange = function(){
+         if(this.readyState === 4 && this.status === 200){
+           var response = JSON.parse(this.responseText);
+           if(response.ErrorStatus == "Success"){
+             for (var i = 0; i < response.Response.data.characters.length; i++) {
+               var char = response.Response.data.characters[i];
+              _this.push('characters', {
+                characterType: _this._characterName(char.characterBase.classType),
+                characterLevel: char.characterLevel,
+                minutesPlayedTotal: char.characterBase.minutesPlayedTotal,
+                lightLevel: char.characterBase.powerLevel,
+                characterId: char.characterBase.characterId,
+                stats: {
+                  agility: char.characterBase.stats.STAT_AGILITY.value,
+                  armor: char.characterBase.stats.STAT_ARMOR.value,
+                  defense: char.characterBase.stats.STAT_DEFENSE.value,
+                  dicipline: char.characterBase.stats.STAT_DISCIPLINE.value,
+                  intellect: char.characterBase.stats.STAT_INTELLECT.value,
+                  strength: char.characterBase.stats.STAT_STRENGTH.value
+                },
+              });
+             }
+             console.log("characters", _this.characters);
+             _this._getCharacterTrialsStats();
+           }else {
+             console.log("ERROR GETTING CHARACTERS", response);
+           }
+         }
+        }
+
+        xhr.send();
+      },
+
+      _getCharacterTrialsStats: function(){
+        var url = "https://www.bungie.net/platform/Destiny/Stats/"+ this.console + "/" + this.membershipId +"/" + this.characters[0].characterId+ "/?modes=TrialsOfOsiris";
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url , true);
+        xhr.setRequestHeader("X-API-Key", this.apiKey);
+
+        var _this = this;
+        xhr.onreadystatechange = function(){
+         if(this.readyState === 4 && this.status === 200){
+           var response = JSON.parse(this.responseText);
+           if(response.ErrorStatus == "Success"){
+             console.log("STATS", response);
+           }else {
+             console.log("ERROR GETTING activities", response);
+           }
+         }
+        }
+
+        xhr.send();
+      },
+
+      _handleResponse: function(data){
+
+      },
+
+      _characterName: function(num){
+        if(num == 0){
+          return "Titan";
+        }else if(num == 1) {
+          return "Hunter";
+        }else if(num == 2) {
+          return "Warlock";
+        }
+      }
+
+    });
+  </script>
+</dom-module>
