@@ -28,6 +28,7 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
         },
         userName: {
           type: String,
+          notify: true,
         },
         console: {
           type: Number,
@@ -35,6 +36,7 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
         },
         stats: {
           type: Object,
+          notify: true,
           value: {},
         },
         membershipId: {
@@ -42,23 +44,28 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
         },
         characters: {
           type: Array,
-          reflectToAttribute: true,
+          notify: true,
+          value: [],
         },
         loadingCharacters: {
           type: Boolean,
-          value: true,
+          notify: true,
+          value: false,
         },
         loadingStats: {
           type: Boolean,
-          value: true,
+          notify: true,
+          value: false,
         },
       },
 
-      ready: function() {
+      generateRequest: function(){
         this._getMembershipIdByDisplayName(this.apiKey);
       },
 
       _getMembershipIdByDisplayName: function() {
+        this.loadingCharacters = true;
+        this.loadingStats = true;
         var url = "https://www.bungie.net/platform/Destiny" + "/" + this.console +"/Stats/GetMembershipIdByDisplayName/"+ this.userName +"/";
         var xhr = new XMLHttpRequest();
         xhr.open("GET", url , true);
@@ -92,10 +99,8 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
          if(this.readyState === 4 && this.status === 200){
            var response = JSON.parse(this.responseText);
            if(response.ErrorStatus == "Success"){
-             _this.set('stats', { mergedCharacters: {} } );
-             _this.set('stats.mergedCharacters.pvp', response.Response.mergedAllCharacters.results.allPvP.allTime);
-             _this.set('stats.mergedCharacters.pve', response.Response.mergedAllCharacters.results.allPvE.allTime);
-             console.log("STATS", _this.stats);
+             _this.loadingStats = false;
+             _this.set('stats', response.Response.mergedAllCharacters.results.allPvP.allTime);
            }else {
              console.log("ERROR GETTING STATS", response);
            }
@@ -116,14 +121,17 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
          if(this.readyState === 4 && this.status === 200){
            var response = JSON.parse(this.responseText);
            if(response.ErrorStatus == "Success"){
+             var characters = [];
              for (var i = 0; i < response.Response.data.characters.length; i++) {
-               var char = response.Response.data.characters[i];
-              _this.set('characters', {
+              var char = response.Response.data.characters[i];
+              characters.push({
                 characterType: _this._characterName(char.characterBase.classType),
                 characterLevel: char.characterLevel,
                 minutesPlayedTotal: char.characterBase.minutesPlayedTotal,
                 lightLevel: char.characterBase.powerLevel,
                 characterId: char.characterBase.characterId,
+                emblemPath: char.emblemPath,
+                backgroundPath: char.backgroundPath,
                 stats: {
                   agility: char.characterBase.stats.STAT_AGILITY.value,
                   armor: char.characterBase.stats.STAT_ARMOR.value,
@@ -134,7 +142,8 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
                 },
               });
              }
-             console.log("characters", _this.characters);
+             _this.set('characters', characters);
+             _this.loadingCharacters = false;
              _this._getCharacterTrialsStats();
            }else {
              console.log("ERROR GETTING CHARACTERS", response);
@@ -156,7 +165,7 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
          if(this.readyState === 4 && this.status === 200){
            var response = JSON.parse(this.responseText);
            if(response.ErrorStatus == "Success"){
-             console.log("STATS", response);
+             console.log("TRIALS STATS", response);
            }else {
              console.log("ERROR GETTING activities", response);
            }
