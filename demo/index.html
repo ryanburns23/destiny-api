@@ -13,14 +13,16 @@
     <link rel="import" href="../destiny-api.html">
 
     <style is="custom-style" include="demo-pages-shared-styles">
+
     </style>
   </head>
   <body>
     <div class="vertical-section-container centered">
       <h3>Basic app-destiny demo</h3>
       <demo-snippet>
-        <template>
-          <destiny-api user-name="burnzilla23" console="2" api-key="5ade1475422c4b9f9c215599cfd108da"></destiny-api>
+        <template is="dom-bind">
+          <p>[[data.stats.pvp.killsDeathsRatio.basic.displayValue]]</p>
+          <destiny-api response="{{data}}" user-name="burnzilla23" console="2" api-key="3a9c87c7c62446b192f2b98b8d9f8f3e" loading-stats="{{loading}}" loading-characters="{{loading}}"></destiny-api>
         </template>
       </demo-snippet>
     </div>
