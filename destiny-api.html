@@ -65,12 +65,12 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
         loadingCharacters: {
           type: Boolean,
           notify: true,
-          value: false,
+          value: true
         },
         loadingStats: {
           type: Boolean,
           notify: true,
-          value: false,
+          value: true
         },
       },
 
@@ -89,6 +89,7 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
       },
 
       _getStats: function(id) {
+        this.loadingStats = true;
         var url = "https://www.bungie.net/platform/Destiny/Stats/Account/"+ this.console + "/" + id +"/";
         this.$.stats.send({ url: url, headers: { "X-API-Key": this.apiKey}, handleAs: "json" })
         .then(function(){
@@ -97,11 +98,13 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
             pve: this.$.stats.parseResponse().Response.mergedAllCharacters.results.allPvE.allTime
           }
           this.set("response.stats", stats);
+          this.loadingStats = false;
           console.log(this.response);
         }.bind(this));
       },
 
       _getCharacters: function(id) {
+        this.loadingCharacters = true;
         var url = "https://www.bungie.net/platform/Destiny/" + this.console + "/Account/" + this.membershipId +"/";
         this.$.characters.send({ url: url, headers: { "X-API-Key": this.apiKey}, handleAs: "json" })
         .then(function(){
@@ -109,6 +112,7 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
           this.set("response.characters", this._parseCharacters(response));
           this._getCharacterTrialsStats();
           this._getCharacterActivities();
+          this.loadingCharacters = false;
           console.log(this.response);
         }.bind(this));
       },
