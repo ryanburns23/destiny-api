@@ -21,8 +21,15 @@
       <h3>Basic app-destiny demo</h3>
       <demo-snippet>
         <template is="dom-bind">
-          <p>[[data.stats.pvp.killsDeathsRatio.basic.displayValue]]</p>
-          <destiny-api response="{{data}}" user-name="burnzilla23" console="2" api-key="3a9c87c7c62446b192f2b98b8d9f8f3e" loading-stats="{{loading}}" loading-characters="{{loading}}"></destiny-api>
+
+          <destiny-api response="{{data}}" user-name="burnzilla23" console="2" api-key="3a9c87c7c62446b192f2b98b8d9f8f3e" loading-stats="{{loading}}"></destiny-api>
+
+          <div class="loading" hidden$="[[!loading]]">Loading...</div>
+          <div hidden$="[[loading]]">
+            <h4>Combined Character Stats</h4>
+            <div>K/D: [[data.stats.pvp.killsDeathsRatio.basic.displayValue]]</div>
+          </div>
+
         </template>
       </demo-snippet>
     </div>

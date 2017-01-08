@@ -23,9 +23,9 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
       auto
       url="https://www.bungie.net/platform/Destiny/[[console]]/Stats/GetMembershipIdByDisplayName/[[userName]]/"
       handle-as="json"
-      headers="[[headers]]"
+      headers="[[_headers]]"
       last-response="{{idResponse}}"
-      on-response="handleResponse"
+      on-response="_handleResponse"
       debounce-duration="300">
     </iron-ajax>
 
@@ -33,10 +33,10 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
       id="getStats"
       url="https://www.bungie.net/platform/Destiny/Stats/Account/[[console]]/[[membershipId]]/";
       handle-as="json"
-      headers="[[headers]]"
+      headers="[[_headers]]"
       loading="{{loadingStats}}"
       last-response="{{statResponse}}"
-      on-response="handleStatResponse"
+      on-response="_handleStatResponse"
       debounce-duration="300">
     </iron-ajax>
 
@@ -44,10 +44,10 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
       id="getCharacters"
       url="https://www.bungie.net/platform/Destiny/[[console]]/Account/[[membershipId]]/";
       handle-as="json"
-      headers="[[headers]]"
+      headers="[[_headers]]"
       loading="{{loadingCharacters}}"
       last-response="{{characterResponse}}"
-      on-response="handleCharacterResponse"
+      on-response="_handleCharacterResponse"
       debounce-duration="300">
     </iron-ajax>
 
@@ -58,44 +58,58 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
 
       is: 'destiny-api',
       properties: {
+        /*
+        *  Get API key from <a target="_blank" href="https://www.bungie.net/en/Application">API registration portal</a>
+        */
         apiKey: {
           type: String,
         },
+        /*
+        *  PSN or Xbox gamertag
+        */
         userName: {
           type: String,
-          notify: true,
         },
-        headers: {
+        /*
+        *  Headers used in iron-ajax
+        */
+        _headers: {
           type: Object,
           computed: "_computeHeaders(apiKey)"
         },
+        /*
+        *  Xbox: 1 </br> PS4: 2
+        */
         console: {
           type: Number,
           value: 2,
         },
+        /*
+        *  Data is exposed in the response property
+        */
         response: {
           type: Number,
           notify: true,
           value: {},
         },
-        stats: {
-          type: Object,
-          notify: true,
-          value: {},
-        },
+        /*
+        *  Destiny membership ID for the provided Username
+        */
         membershipId: {
           type: String,
-        },
-        characters: {
-          type: Array,
           notify: true,
-          value: [],
         },
+        /*
+        *  True if loading Characters
+        */
         loadingCharacters: {
           type: Boolean,
           notify: true,
           value: true
         },
+        /*
+        *  True if loading Stats
+        */
         loadingStats: {
           type: Boolean,
           notify: true,
@@ -103,34 +117,23 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
         },
       },
 
-      generateRequest: function(){
-        //this._getMembershipIdByDisplayName(this.apiKey);
-      },
-
-
-      _computeHeaders: function(key){
-        return { "X-API-Key": key };
-      },
-
       _getMembershipIdByDisplayName: function(key) {
         this.$.id.generateRequest();
       },
 
-      handleResponse: function(){
+      _handleResponse: function(){
         this.membershipId = this.idResponse.Response;
         this.$.getStats.generateRequest();
         this.$.getCharacters.generateRequest();
       },
-      handleStatResponse: function(){
+      _handleStatResponse: function(){
         var stats = {
           pvp: this.statResponse.Response.mergedAllCharacters.results.allPvP.allTime,
           pve: this.statResponse.Response.mergedAllCharacters.results.allPvE.allTime
         }
         this.set("response.stats", stats);
-        console.log(this.response);
       },
-
-      handleCharacterResponse: function(){
+      _handleCharacterResponse: function(){
         this.set("response.characters", this._parseCharacters(this.characterResponse.Response));
         this._getCharacterStats();
         this._getCharacterActivities();
@@ -221,6 +224,10 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
         .then(function(){
           this.set("response.characters.2.activity", {trials: request2.parseResponse().Response.data.activities});
         }.bind(this));
+      },
+
+      _computeHeaders: function(key){
+        return { "X-API-Key": key };
       },
 
       _characterName: function(num){
