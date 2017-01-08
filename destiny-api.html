@@ -1,5 +1,5 @@
 <link rel="import" href="../polymer/polymer.html">
-<link rel="import" href="../iron-ajax/iron-request.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
 
 <!--
 `<destiny-api>`
@@ -18,13 +18,38 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
       }
     </style>
 
-    <iron-request id="id"></iron-request>
-    <iron-request id="stats"></iron-request>
-    <iron-request id="characters"></iron-request>
-    <iron-request id="trials0"></iron-request>
-    <iron-request id="trials1"></iron-request>
-    <iron-request id="trials2"></iron-request>
-    <iron-request id="activity1"></iron-request>
+    <iron-ajax
+      id="getMembershipId"
+      auto
+      url="https://www.bungie.net/platform/Destiny/[[console]]/Stats/GetMembershipIdByDisplayName/[[userName]]/"
+      handle-as="json"
+      headers="[[headers]]"
+      last-response="{{idResponse}}"
+      on-response="handleResponse"
+      debounce-duration="300">
+    </iron-ajax>
+
+    <iron-ajax
+      id="getStats"
+      url="https://www.bungie.net/platform/Destiny/Stats/Account/[[console]]/[[membershipId]]/";
+      handle-as="json"
+      headers="[[headers]]"
+      loading="{{loadingStats}}"
+      last-response="{{statResponse}}"
+      on-response="handleStatResponse"
+      debounce-duration="300">
+    </iron-ajax>
+
+    <iron-ajax
+      id="getCharacters"
+      url="https://www.bungie.net/platform/Destiny/[[console]]/Account/[[membershipId]]/";
+      handle-as="json"
+      headers="[[headers]]"
+      loading="{{loadingCharacters}}"
+      last-response="{{characterResponse}}"
+      on-response="handleCharacterResponse"
+      debounce-duration="300">
+    </iron-ajax>
 
   </template>
 
@@ -39,6 +64,10 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
         userName: {
           type: String,
           notify: true,
+        },
+        headers: {
+          type: Object,
+          computed: "_computeHeaders(apiKey)"
         },
         console: {
           type: Number,
@@ -75,47 +104,38 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
       },
 
       generateRequest: function(){
-        this._getMembershipIdByDisplayName(this.apiKey);
+        //this._getMembershipIdByDisplayName(this.apiKey);
+      },
+
+
+      _computeHeaders: function(key){
+        return { "X-API-Key": key };
       },
 
       _getMembershipIdByDisplayName: function(key) {
-        var url = "https://www.bungie.net/platform/Destiny" + "/" + this.console +"/Stats/GetMembershipIdByDisplayName/"+ this.userName +"/";
-        this.$.id.send({ url: url, headers: { "X-API-Key": key}, handleAs: "json" })
-        .then(function(response){
-          this.membershipId = this.$.id.parseResponse().Response;
-          this._getStats(this.membershipId);
-          this._getCharacters(this.membershipId);
-        }.bind(this));
+        this.$.id.generateRequest();
       },
 
-      _getStats: function(id) {
-        this.loadingStats = true;
-        var url = "https://www.bungie.net/platform/Destiny/Stats/Account/"+ this.console + "/" + id +"/";
-        this.$.stats.send({ url: url, headers: { "X-API-Key": this.apiKey}, handleAs: "json" })
-        .then(function(){
-          var stats = {
-            pvp: this.$.stats.parseResponse().Response.mergedAllCharacters.results.allPvP.allTime,
-            pve: this.$.stats.parseResponse().Response.mergedAllCharacters.results.allPvE.allTime
-          }
-          this.set("response.stats", stats);
-          this.loadingStats = false;
-          console.log(this.response);
-        }.bind(this));
+      handleResponse: function(){
+        this.membershipId = this.idResponse.Response;
+        this.$.getStats.generateRequest();
+        this.$.getCharacters.generateRequest();
+      },
+      handleStatResponse: function(){
+        var stats = {
+          pvp: this.statResponse.Response.mergedAllCharacters.results.allPvP.allTime,
+          pve: this.statResponse.Response.mergedAllCharacters.results.allPvE.allTime
+        }
+        this.set("response.stats", stats);
+        console.log(this.response);
       },
 
-      _getCharacters: function(id) {
-        this.loadingCharacters = true;
-        var url = "https://www.bungie.net/platform/Destiny/" + this.console + "/Account/" + this.membershipId +"/";
-        this.$.characters.send({ url: url, headers: { "X-API-Key": this.apiKey}, handleAs: "json" })
-        .then(function(){
-          var response = this.$.characters.parseResponse().Response;
-          this.set("response.characters", this._parseCharacters(response));
-          this._getCharacterTrialsStats();
-          this._getCharacterActivities();
-          this.loadingCharacters = false;
-          console.log(this.response);
-        }.bind(this));
+      handleCharacterResponse: function(){
+        this.set("response.characters", this._parseCharacters(this.characterResponse.Response));
+        this._getCharacterStats();
+        this._getCharacterActivities();
       },
+
       _parseCharacters: function(response){
         var characters = [];
         for (var i = 0; i < response.data.characters.length; i++) {
@@ -142,37 +162,64 @@ Polymer element to access destiny API [endpoints](http://destinydevs.github.io/B
       },
 
 
-      _getCharacterTrialsStats: function(){
-        // Dragon face emoji? 🐲
-        var url0 = "https://www.bungie.net/platform/Destiny/Stats/"+ this.console + "/" + this.membershipId +"/" + this.response.characters[0].characterId + "/?modes=TrialsOfOsiris";
-        var request0 = this.$.trials0;
-        request0.send({ url: url0, headers: { "X-API-Key": this.apiKey}, handleAs: "json" })
+      _getCharacterStats: function(){
+        //request for each chatacter
+        var request = document.createElement("iron-request");
+        request.send( this._computeRequestParams(this._computeCharacterStatUrl(0)) )
         .then(function(){
-          this.set("response.characters.0.stats.trials", request0.parseResponse().Response.trialsOfOsiris.allTime);
+          var result = request.parseResponse().Response;
+          this.set("response.characters.0.stats.trials", result.trialsOfOsiris.allTime);
+          this.set("response.characters.0.stats.pvp", result.allPvP.allTime);
         }.bind(this));
 
-        var url1 = "https://www.bungie.net/platform/Destiny/Stats/"+ this.console + "/" + this.membershipId +"/" + this.response.characters[1].characterId + "/?modes=TrialsOfOsiris";
-        var request1 = this.$.trials1;
-        request1.send({ url: url1, headers: { "X-API-Key": this.apiKey}, handleAs: "json" })
+        var request1 = document.createElement("iron-request");
+        request1.send( this._computeRequestParams(this._computeCharacterStatUrl(1)) )
         .then(function(){
-          this.set("response.characters.1.stats.trials", request1.parseResponse().Response.trialsOfOsiris.allTime);
+          var result1 = request1.parseResponse().Response;
+          this.set("response.characters.1.stats.trials", result1.trialsOfOsiris.allTime);
+          this.set("response.characters.1.stats.pvp", result1.allPvP.allTime);
         }.bind(this));
 
-        var url2 = "https://www.bungie.net/platform/Destiny/Stats/"+ this.console + "/" + this.membershipId +"/" + this.response.characters[2].characterId + "/?modes=TrialsOfOsiris";
-        var request2 = this.$.trials2;
-        request2.send({ url: url2, headers: { "X-API-Key": this.apiKey}, handleAs: "json" })
+        var request2 = document.createElement("iron-request");
+        request2.send( this._computeRequestParams(this._computeCharacterStatUrl(2)) )
         .then(function(){
-          this.set("response.characters.2.stats.trials", request2.parseResponse().Response.trialsOfOsiris.allTime);
+          var result2 = request2.parseResponse().Response;
+          this.set("response.characters.2.stats.pvp", result2.allPvP.allTime);
+          this.set("response.characters.2.stats.trials", result2.trialsOfOsiris.allTime);
         }.bind(this));
+      },
+
+      _computeRequestParams: function(url){
+        return  {
+          url: url,
+          headers: { "X-API-Key": this.apiKey},
+          handleAs: "json"
+        };
+      },
+      _computeCharacterStatUrl: function(index){
+        return "https://www.bungie.net/platform/Destiny/Stats/"+ this.console + "/" + this.membershipId +"/" + this.response.characters[index].characterId + "/?modes=AllPvP,TrialsOfOsiris";
       },
 
       _getCharacterActivities: function(){
         var url = "https://www.bungie.net/platform/Destiny/Stats/ActivityHistory/"+ this.console + "/" + this.membershipId +"/" + this.response.characters[0].characterId + "/?mode=TrialsOfOsiris";
-        var request = this.$.activity1;
-        request.send({ url: url, headers: { "X-API-Key": this.apiKey}, handleAs: "json" })
+        var request = document.createElement("iron-request");
+        request.send(this._computeRequestParams(url))
         .then(function(){
           this.set("response.characters.0.activity", {trials: request.parseResponse().Response.data.activities});
-          console.log(this.response);
+        }.bind(this));
+
+        var url1 = "https://www.bungie.net/platform/Destiny/Stats/ActivityHistory/"+ this.console + "/" + this.membershipId +"/" + this.response.characters[1].characterId + "/?mode=TrialsOfOsiris";
+        var request1 = document.createElement("iron-request");
+        request1.send(this._computeRequestParams(url1))
+        .then(function(){
+          this.set("response.characters.1.activity", {trials: request1.parseResponse().Response.data.activities});
+        }.bind(this));
+
+        var url2 = "https://www.bungie.net/platform/Destiny/Stats/ActivityHistory/"+ this.console + "/" + this.membershipId +"/" + this.response.characters[1].characterId + "/?mode=TrialsOfOsiris";
+        var request2 = document.createElement("iron-request");
+        request2.send(this._computeRequestParams(url2))
+        .then(function(){
+          this.set("response.characters.2.activity", {trials: request2.parseResponse().Response.data.activities});
         }.bind(this));
       },
 
